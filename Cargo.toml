@@ -1,0 +1,18 @@
+[package]
+name = "base-pool"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.87"
+license = "MIT"
+repository = "https://github.com/base-rs/base-pool"
+description = "Explicit singleplex and multiplex resource pools for Base"
+documentation = "https://docs.rs/base-pool"
+readme = "readme.md"
+include = ["src/**", "tests/**", "design/**", "Cargo.toml", "readme.md", "license.md", "releases.md"]
+
+[dependencies]
+base-scheduler = "0.2.0"
+event-listener = "5.4.2"
+
+[dev-dependencies]
+futures-lite = "2.6.1"
