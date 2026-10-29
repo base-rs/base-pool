@@ -7,7 +7,6 @@ use crate::{
 };
 use base_scheduler::Cancellation;
 use std::{
-    collections::BTreeMap,
     ops::Deref,
     sync::{Arc, Weak},
 };
@@ -40,10 +39,28 @@ enum Stage {
     Cleaning,
 }
 
+// Use identifiers are allocated in increasing order, so pushing keeps the
+// list sorted; it retains its allocation across uses.
+struct Uses(Vec<(UseId, Stage)>);
+impl Uses {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+    fn position(&self, id: &UseId) -> Option<usize> {
+        self.0.binary_search_by(|(use_id, _)| use_id.cmp(id)).ok()
+    }
+    fn get_mut(&mut self, id: &UseId) -> Option<&mut Stage> {
+        self.position(id).map(|index| &mut self.0[index].1)
+    }
+    fn remove(&mut self, id: &UseId) -> Option<Stage> {
+        self.position(id).map(|index| self.0.remove(index).1)
+    }
+}
+
 struct MultiSlot<R> {
     resource: Arc<R>,
     admission: Admission,
-    uses: BTreeMap<UseId, Stage>,
+    uses: Uses,
     reserved: usize,
     active: usize,
     next_use: u64,
@@ -66,7 +83,7 @@ impl<R: Send + Sync> Slot for MultiSlot<R> {
             .next_use
             .checked_add(1)
             .expect("multiplex use identifier space exhausted");
-        self.uses.insert(id, Stage::Reserved);
+        self.uses.0.push((id, Stage::Reserved));
         self.reserved += 1;
         (self.resource.clone(), id)
     }
@@ -184,7 +201,7 @@ impl<R: Send + Sync> MultiplexBuildPermit<R> {
         let slot = MultiSlot {
             resource: Arc::new(resource),
             admission,
-            uses: BTreeMap::new(),
+            uses: Uses(Vec::new()),
             reserved: 0,
             active: 0,
             next_use: 0,
@@ -243,6 +260,7 @@ impl<R: Send + Sync> MultiplexResource<R> {
                 return false;
             }
             slot.admission = admission;
+            state.released(self.id);
         }
         core.accounting.notify();
         true
@@ -252,12 +270,13 @@ impl<R: Send + Sync> MultiplexResource<R> {
         let (use_id, resource) = {
             let mut state = core.lock();
             let slot = state.slots.get_mut(&self.id)?;
-            let (&use_id, stage) = slot
+            let (use_id, stage) = slot
                 .uses
+                .0
                 .iter_mut()
-                .find(|(_, stage)| **stage == Stage::Abandoned)?;
+                .find(|(_, stage)| *stage == Stage::Abandoned)?;
             *stage = Stage::Cleaning;
-            (use_id, slot.resource.clone())
+            (*use_id, slot.resource.clone())
         };
         Some(MultiplexAbandonedUse {
             core,

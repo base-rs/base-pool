@@ -74,8 +74,17 @@ pub(crate) struct State<S> {
     pub slots: BTreeMap<ResourceId, S>,
     building: BTreeSet<ResourceId>,
     waiters: VecDeque<u64>,
+    // No slot below this identifier is available. Releases lower it, so the
+    // lowest available slot is still selected without scanning busy ones.
+    available_from: ResourceId,
     next_resource: u64,
     next_waiter: u64,
+}
+
+impl<S> State<S> {
+    pub fn released(&mut self, id: ResourceId) {
+        self.available_from = self.available_from.min(id);
+    }
 }
 
 pub(crate) struct Core<S: Slot> {
@@ -119,6 +128,7 @@ impl<S: Slot> Core<S> {
                 slots: BTreeMap::new(),
                 building: BTreeSet::new(),
                 waiters: VecDeque::new(),
+                available_from: ResourceId(0),
                 next_resource: 0,
                 next_waiter: 0,
             }),
@@ -133,9 +143,16 @@ impl<S: Slot> Core<S> {
 
     fn take(&self, state: &mut State<S>) -> Option<Acquired<S::Acquired>> {
         // Stable registration order packs available resources before building.
-        if let Some((&id, slot)) = state.slots.iter_mut().find(|(_, slot)| slot.available()) {
+        let from = state.available_from;
+        if let Some((&id, slot)) = state
+            .slots
+            .range_mut(from..)
+            .find(|(_, slot)| slot.available())
+        {
+            state.available_from = id;
             return Some(Acquired::Existing(id, slot.acquire()));
         }
+        state.available_from = ResourceId(state.next_resource);
         let mut counts = lock(&self.accounting.counts);
         if counts.total() >= self.options.max_resources
             || counts.building >= self.options.max_constructing
@@ -160,6 +177,20 @@ impl<S: Slot> Core<S> {
             core: self,
             ticket: None,
         };
+        // Take an available resource before creating a listener; contended
+        // acquisitions queue below.
+        cancellation.check()?;
+        {
+            let mut state = self.lock();
+            if state.closed {
+                return Err(Error::Closed);
+            }
+            if state.waiters.is_empty() {
+                if let Some(acquired) = self.take(&mut state) {
+                    return Ok(acquired);
+                }
+            }
+        }
         loop {
             cancellation.check()?;
             event_listener::listener!(self.accounting.changed => listener);
@@ -167,11 +198,6 @@ impl<S: Slot> Core<S> {
                 let mut state = self.lock();
                 if state.closed {
                     return Err(Error::Closed);
-                }
-                if waiter.ticket.is_none() && state.waiters.is_empty() {
-                    if let Some(acquired) = self.take(&mut state) {
-                        return Ok(acquired);
-                    }
                 }
                 if waiter.ticket.is_none() {
                     if state.waiters.len() >= self.options.max_waiters {
@@ -224,6 +250,7 @@ impl<S: Slot> Core<S> {
             } else {
                 counts.live += 1;
                 state.slots.insert(id, slot);
+                state.released(id);
                 None
             }
         };
@@ -238,6 +265,7 @@ impl<S: Slot> Core<S> {
 
     // Caller holds the state lock. Returns ownership for queueing after unlock.
     pub fn remove_if_drained(&self, state: &mut State<S>, id: ResourceId) -> Option<S> {
+        state.released(id);
         if state
             .slots
             .get(&id)
