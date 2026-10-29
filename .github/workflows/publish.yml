@@ -1,0 +1,78 @@
+name: Publish to crates.io
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      release: ${{ steps.detect.outputs.release }}
+      version: ${{ steps.detect.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Install Bake launcher
+        run: cargo install bake --locked
+      - name: Detect an explicit release request
+        id: detect
+        env:
+          BAKE_BEFORE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BAKE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: cargo bake --locked cargo:release:detect --base "$BAKE_BEFORE" --sha "$BAKE_SHA"
+      - name: Validate release candidate
+        if: steps.detect.outputs.release == 'true'
+        run: cargo bake --locked cargo:release
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Run tests
+        if: github.event_name == 'push'
+        run: cargo test --workspace --locked
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: crates-io
+    concurrency: release-${{ github.ref }}
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Bake launcher
+        run: cargo install bake --locked
+      - name: Find workspace packages that need publishing
+        id: packages
+        env:
+          BAKE_VERSION: ${{ needs.check.outputs.version }}
+        run: cargo bake --locked cargo:publish:pending --version "$BAKE_VERSION"
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+        if: steps.packages.outputs.has_packages == 'true'
+      - name: Publish workspace and create GitHub Release
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
+          BAKE_VERSION: ${{ needs.check.outputs.version }}
+          BAKE_SHA: ${{ github.sha }}
+        run: cargo bake --locked cargo:release:publish --version "$BAKE_VERSION" --sha "$BAKE_SHA"

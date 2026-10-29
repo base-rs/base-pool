@@ -1,0 +1,9 @@
+[package]
+name = "base-pool-bake"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+bake = "0.20.1"
+base-project = ">=0.1.2"

@@ -16,3 +16,13 @@ event-listener = "5.4.2"
 
 [dev-dependencies]
 futures-lite = "2.6.1"
+
+[workspace]
+members = ["bake"]
+resolver = "3"
+
+[workspace.metadata.bake]
+manifest = "bake/Cargo.toml"
+
+[workspace.metadata.bake.release]
+reviewers = ["base-rs/maintainers"]
