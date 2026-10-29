@@ -166,6 +166,70 @@ fn singleplex_exclusively_moves_send_resources_without_requiring_sync() {
     close_single(&pool);
 }
 
+// Selection that skips an available registration would wait for capacity;
+// fail instead of blocking the test.
+fn lease_now<R: Send>(pool: &SingleplexPool<R>) -> SingleplexLease<R> {
+    match block_on(poll_once(pool.acquire_or_reserve(&Cancellation::never()))) {
+        Some(Ok(Acquisition::Existing(lease))) => lease,
+        _ => panic!("expected an immediately available resource"),
+    }
+}
+fn reserve_now<R: Send + Sync>(pool: &MultiplexPool<R>) -> MultiplexReservation<R> {
+    match block_on(poll_once(pool.acquire_or_reserve(&Cancellation::never()))) {
+        Some(Ok(Acquisition::Existing(permit))) => permit,
+        _ => panic!("expected immediately available capacity"),
+    }
+}
+
+#[test]
+fn out_of_order_releases_still_select_the_earliest_available_registration() {
+    let pool = SingleplexPool::new(options(3)).unwrap();
+    let builds: Vec<_> = (0..3).map(|_| single_build(&pool)).collect();
+    let ids: Vec<_> = builds
+        .into_iter()
+        .zip(0..)
+        .map(|(build, index)| build.commit(index).unwrap().id())
+        .collect();
+    let leases: Vec<_> = (0..3).map(|_| lease_now(&pool)).collect();
+    assert_eq!(leases.iter().map(|l| l.id()).collect::<Vec<_>>(), ids);
+    let mut leases = leases.into_iter();
+    let (first, second, third) = (
+        leases.next().unwrap(),
+        leases.next().unwrap(),
+        leases.next().unwrap(),
+    );
+    third.release();
+    first.release();
+    let first = lease_now(&pool);
+    assert_eq!(first.id(), ids[0]);
+    let third = lease_now(&pool);
+    assert_eq!(third.id(), ids[2]);
+    second.release();
+    let second = lease_now(&pool);
+    assert_eq!(second.id(), ids[1]);
+    for lease in [first, second, third] {
+        lease.release();
+    }
+
+    let pool = MultiplexPool::new(options(2)).unwrap();
+    let (first, second) = (multi_build(&pool), multi_build(&pool));
+    let first = first.commit(0, Admission::concurrent(1)).unwrap();
+    let second = second.commit(1, Admission::concurrent(1)).unwrap();
+    let busy = reserve_now(&pool).activate().unwrap();
+    assert_eq!(busy.resource_id(), first.id());
+    let other = reserve_now(&pool).activate().unwrap();
+    assert_eq!(other.resource_id(), second.id());
+    // Raising admission makes an earlier busy resource available again.
+    assert!(first.update(Admission::concurrent(2)));
+    let shared = reserve_now(&pool);
+    assert_eq!(shared.resource_id(), first.id());
+    drop(shared);
+    for active in [busy, other] {
+        active.complete();
+    }
+    close_multi(&pool);
+}
+
 #[test]
 fn equal_resources_have_distinct_registrations_and_stale_controls_cannot_retire_replacements() {
     let pool = SingleplexPool::new(options(2)).unwrap();
@@ -328,6 +392,10 @@ fn shutdown_wakes_waiters_and_late_construction_is_retired_without_publication()
         assert!(poll_once(waiting.as_mut()).await.is_none());
         pool.begin_close();
         assert!(matches!(waiting.await, Err(Error::Closed)));
+        assert!(matches!(
+            pool.acquire_or_reserve(&never).await,
+            Err(Error::Closed)
+        ));
         let mut closed = pin!(pool.wait_closed(&never));
         assert!(poll_once(closed.as_mut()).await.is_none());
         assert!(matches!(build.commit(5), Err(Error::Closed)));
