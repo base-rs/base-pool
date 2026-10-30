@@ -1,6 +1,6 @@
 [package]
 name = "base-pool"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.87"
 license = "MIT"
@@ -11,7 +11,7 @@ readme = "readme.md"
 include = ["src/**", "tests/**", "design/**", "Cargo.toml", "readme.md", "license.md", "releases.md"]
 
 [dependencies]
-base-scheduler = "0.2.0"
+base-scheduler = "0.3.0"
 event-listener = "5.4.2"
 
 [dev-dependencies]

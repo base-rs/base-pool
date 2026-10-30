@@ -1,6 +1,6 @@
 # Async Pool adaptation
 
-Updated 2026-10-26. Native Rust implementation informed by `socketry/async-pool` revision [`ce077a745b4436e9f8474fd4554ab7d405eebc37`](https://github.com/socketry/async-pool/tree/ce077a745b4436e9f8474fd4554ab7d405eebc37). Reviewed `lib/async/pool/controller.rb`, `resource.rb`, and controller/multiplex/failure/retire-race tests. The upstream MIT license and contributor notices are preserved in [license.md](../license.md). This is a semantic adaptation, not a direct translation of Ruby task machinery. The upstream Ruby tests were inspected, not executed.
+Updated 2026-10-26. Native Rust implementation informed by `socketry/async-pool` revision [`ce077a745b4436e9f8474fd4554ab7d405eebc37`](https://github.com/socketry/async-pool/tree/ce077a745b4436e9f8474fd4554ab7d405eebc37). Reviewed `lib/async/pool/controller.rb`, `resource.rb`, and controller/multiplex/failure/retire-race tests. No upstream code was copied, so [license.md](../license.md) credits only this repository's contributors. This is a semantic adaptation, not a direct translation of Ruby task machinery. The upstream Ruby tests were inspected, not executed.
 
 ## Separate contracts
 

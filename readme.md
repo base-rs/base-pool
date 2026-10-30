@@ -83,4 +83,26 @@ Maintenance is explicit. `prune(retain)` retires unused registrations; a registr
 
 There is no built-in gardener. Retain/prune policy and cleanup belong in an explicitly driven operation, such as the client driver. A timer-driven maintenance future can later implement idle timeout or maximum lifetime using a supplied `Clock`. Without such an operation, unused resources remain until explicit pruning or shutdown. Shared budgets across typed pools, automatic factories, retry/health policies and timed maintenance remain follow-up work. No HTTP-specific behavior or concrete runtime is a production dependency.
 
-The [port notes](design/port.md) record source provenance, the gardener decision, lifecycle changes and validation. Run `cargo test --locked` and `cargo clippy --locked --all-targets -- -D warnings`. Rust 1.87 is the minimum for version 0.2, which uses `base-scheduler 0.2`.
+The [port notes](design/port.md) record source provenance, the gardener decision, lifecycle changes and validation. Rust 1.87 is the minimum supported version.
+
+## Development
+
+Install the launcher with `cargo install bake --locked`. The private `bake/` workspace member supplies the shared Base development tasks:
+
+```sh
+cargo bake --locked test:coverage --all-targets true --all-features true
+```
+
+## Releasing
+
+Prepare a release with `cargo bake cargo:version:patch` (or `minor`, `major`, or `bump --version X.Y.Z`), then run `cargo bake cargo:release` and open a pull request. After review and merge, GitHub Actions publishes the release when the configured `crates-io` environment approves it. Follow the shared [Releasing skill](https://github.com/base-rs/base-project/blob/main/context/releasing.md) for the standard process.
+
+## Releases
+
+Version v0.3.0 uses `base-scheduler 0.3`, which is breaking for callers on earlier scheduler versions, wakes retirement waiters only for cleanup work, and acquires uncontended resources with fewer instructions. See the [release notes](releases.md).
+
+## See Also
+
+- [base-pool](https://github.com/base-rs/base-pool) — Explicit singleplex and multiplex resource pools for Base <!-- bake-readme:package -->
+
+- [base-scheduler](https://github.com/base-rs/base-scheduler) supplies the cancellation interface that pool operations use.

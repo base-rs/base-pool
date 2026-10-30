@@ -1,5 +1,5 @@
 // Released under the MIT License.
-// Copyright, 2019-2026, by Samuel Williams.
+// Copyright, 2026, by Samuel Williams.
 
 use crate::{Error, Options, ResourceId, Retirement, Stats, retirement::RetirementQueue};
 use base_scheduler::Cancellation;
