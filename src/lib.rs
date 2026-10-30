@@ -1,5 +1,5 @@
 // Released under the MIT License.
-// Copyright, 2019-2026, by Samuel Williams.
+// Copyright, 2026, by Samuel Williams.
 
 //! Resource admission and lifetime, independent of resource construction and I/O.
 #![doc = include_str!("../readme.md")]

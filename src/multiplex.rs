@@ -1,5 +1,5 @@
 // Released under the MIT License.
-// Copyright, 2019-2026, by Samuel Williams.
+// Copyright, 2026, by Samuel Williams.
 
 use crate::{
     Acquisition, Error, Options, Pool, ResourceId, Retirement, Stats,
