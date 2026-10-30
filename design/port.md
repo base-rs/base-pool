@@ -42,7 +42,7 @@ The HTTP client is intended to use `MultiplexPool` for negotiated connections, i
 
 For HTTP/2, reservation activation occurs at the connection driver's stream-opening boundary. The active use belongs to exchange state, with cleanup on reset/failure or completion of both directions. The background frame reader supplies input queues independently. GOAWAY disables new reservations while accepted streams drain.
 
-These interfaces are implemented and tested independently of HTTP; the high-level client has not been implemented or integrated. Client-owned construction, driver registration, protocol validation, health probes and retry/timeout policy remain consumer work. A construction reservation can cover dialing and ALPN selection before committing the negotiated connection and its admission to the same multiplex pool. Shared budgets across distinct pools remain separate generic future work.
+These interfaces are implemented and tested independently of HTTP; the high-level client has not been implemented or integrated. Client-owned construction, driver registration, protocol validation, health probes and retry/timeout policy remain consumer work. A construction reservation can cover dialing and ALPN selection before committing the negotiated connection and its admission to the same multiplex pool. Shared budgets across distinct pools and automatic factories remain separate generic future work.
 
 ## Validation
 
