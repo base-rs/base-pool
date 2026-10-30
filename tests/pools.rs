@@ -612,10 +612,16 @@ fn common_pool_trait_preserves_distinct_associated_permit_types() {
             Acquisition::Existing(_) => panic!(),
         }
     }
+    fn close<P: Pool>(pool: &P) {
+        pool.begin_close();
+        assert!(pool.stats().closed);
+    }
     let single = SingleplexPool::<String>::new(options(1)).unwrap();
     let multi = MultiplexPool::<String>::new(options(1)).unwrap();
     drop(block_on(obtain(&single)));
     drop(block_on(obtain(&multi)));
+    close(&single);
+    close(&multi);
     close_single(&single);
     close_multi(&multi);
 }
@@ -816,4 +822,126 @@ fn invalid_zero_resource_or_constructor_limits_are_rejected() {
         }),
         Err(Error::InvalidOptions)
     ));
+}
+
+#[test]
+fn errors_describe_each_failure() {
+    let messages = [
+        Error::Closed,
+        Error::Cancelled,
+        Error::WaitersFull,
+        Error::AdmissionChanged,
+        Error::InvalidOptions,
+    ]
+    .map(|error| error.to_string());
+    assert_eq!(
+        messages,
+        [
+            "pool admission is closed",
+            "pool operation cancelled",
+            "pool waiter limit reached",
+            "resource admission changed before use activation",
+            "resource and construction limits must be positive",
+        ]
+    );
+}
+
+#[test]
+fn singleplex_handles_identify_registrations_and_leases_can_retire_explicitly() {
+    let pool = SingleplexPool::new(options(1)).unwrap();
+    let permit = single_build(&pool);
+    let id = permit.id();
+    let resource = permit.commit(1).unwrap().clone();
+    assert_eq!(resource.id(), id);
+    let held = lease(&pool);
+    assert_eq!(held.id(), id);
+    held.retire();
+    assert!(!resource.retire());
+    let mut retired = pool.try_retirement().unwrap();
+    assert_eq!(retired.id(), id);
+    *retired += 1;
+    assert_eq!(*retired, 2);
+    retired.complete();
+    close_single(&pool);
+}
+
+#[test]
+fn multiplex_handles_identify_registrations_and_report_closed_admission() {
+    let pool = MultiplexPool::new(options(2)).unwrap();
+    let permit = multi_build(&pool);
+    let id = permit.id();
+    let resource = permit.commit(1, Admission::concurrent(1)).unwrap().clone();
+    assert_eq!(resource.id(), id);
+    assert_eq!(pool.prune(0), 1);
+    assert!(!resource.update(Admission::concurrent(2)));
+    pool.try_retirement().unwrap().complete();
+    let late = multi_build(&pool);
+    pool.begin_close();
+    assert!(matches!(
+        late.commit(2, Admission::concurrent(1)),
+        Err(Error::Closed)
+    ));
+    assert!(matches!(
+        block_on(pool.acquire_or_reserve(&Cancellation::never())),
+        Err(Error::Closed)
+    ));
+    assert_eq!(**pool.try_retirement().unwrap(), 2);
+    close_multi(&pool);
+}
+
+#[test]
+fn multiplex_abandonment_waits_report_cancellation_and_a_dropped_pool() {
+    block_on(async {
+        let pool = MultiplexPool::new(options(1)).unwrap();
+        let resource = multi_build(&pool)
+            .commit(0, Admission::concurrent(1))
+            .unwrap();
+        let cancel = Cancellation::new();
+        {
+            let mut notice = pin!(resource.next_abandoned(&cancel));
+            assert!(poll_once(notice.as_mut()).await.is_none());
+            cancel.cancel();
+            assert!(matches!(
+                poll_once(notice.as_mut()).await,
+                Some(Err(Error::Cancelled))
+            ));
+        }
+        assert!(matches!(
+            poll_once(resource.next_abandoned(&cancel)).await,
+            Some(Err(Error::Cancelled))
+        ));
+        let active = reserve(&pool).activate().unwrap();
+        drop(active);
+        let abandoned = resource.try_abandoned().unwrap();
+        assert_eq!(abandoned.resource_id(), resource.id());
+        abandoned.complete();
+        drop(pool);
+        assert!(!resource.update(Admission::concurrent(2)));
+        assert!(resource.try_abandoned().is_none());
+        assert!(matches!(
+            poll_once(resource.next_abandoned(&Cancellation::never())).await,
+            Some(Ok(None))
+        ));
+    });
+}
+
+#[test]
+fn cancelling_a_close_wait_leaves_shutdown_pending() {
+    block_on(async {
+        let pool = SingleplexPool::new(options(1)).unwrap();
+        single_build(&pool).commit(0).unwrap();
+        pool.begin_close();
+        let cancel = Cancellation::new();
+        {
+            let mut closed = pin!(pool.wait_closed(&cancel));
+            assert!(poll_once(closed.as_mut()).await.is_none());
+            cancel.cancel();
+            assert!(matches!(
+                poll_once(closed.as_mut()).await,
+                Some(Err(Error::Cancelled))
+            ));
+        }
+        assert_eq!(pool.stats().retiring, 1);
+        close_single(&pool);
+    });
 }

@@ -20,7 +20,7 @@ pub(crate) async fn cancellable<F: Future>(
     future: F,
     cancel: &Cancellation,
 ) -> Result<F::Output, Error> {
-    cancel.check()?;
+    // An already cancelled signal is ready on first poll, before the work.
     let mut work = pin!(future);
     let mut cancelled = pin!(cancel.cancelled());
     poll_fn(|cx| {
@@ -191,8 +191,8 @@ impl<S: Slot> Core<S> {
                 }
             }
         }
+        // Each later pass follows a cancellable wait, which reports cancellation.
         loop {
-            cancellation.check()?;
             event_listener::listener!(self.accounting.changed => listener);
             let acquired = {
                 let mut state = self.lock();
