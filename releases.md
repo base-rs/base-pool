@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.4.0
 
 - **Breaking:** Use `base-scheduler 0.4`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged.
 

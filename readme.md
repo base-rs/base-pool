@@ -55,6 +55,10 @@ Prepare a release with `cargo bake cargo:version:patch` (or `minor`, `major`, or
 
 See [releases.md](releases.md) for the full release history.
 
+### v0.4.0
+
+- **Breaking:** Use `base-scheduler 0.4`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged.
+
 ### v0.3.0
 
 - Use `base-scheduler 0.3`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged.
@@ -66,17 +70,6 @@ See [releases.md](releases.md) for the full release history.
 ### v0.2.0
 
 - Use `base-scheduler 0.2` and require Rust 1.87. Pool acquisition and retirement share the corrected scheduler interface's cancellation type; pool behavior and admission accounting are unchanged.
-
-### v0.1.0
-
-Initial release of the runtime-independent resource pools. Requires Rust 1.85 or later. The API is experimental; HTTP client integration and pool performance measurements remain follow-up work.
-
-- Provide distinct `SingleplexPool` exclusive leases and `MultiplexPool` shared-use reservations, with a common `Pool` interface.
-- Bound total resources, concurrent construction and queued waiters. Reserve resource capacity before asynchronous construction and retain it through explicit retirement.
-- Support FIFO admission, cancellation, capacity updates, reservation revalidation and consumable opening credit independently of concurrent-use limits.
-- Retain abandoned active-use charges until the resource driver acknowledges cleanup. Requeue unfinished cleanup and retirement obligations.
-- Expose explicit pruning, admission closure, retirement and shutdown waits. Spawn no tasks and retain no scheduler instance.
-- Depend on the published `base-scheduler` interface and preserve the upstream MIT license and contributor notices from the `async-pool` adaptation.
 
 <!-- bake-readme:releases:end -->
 
