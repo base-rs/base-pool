@@ -1,6 +1,6 @@
 # Releases
 
-## Unreleased
+## v0.5.0
 
 - **Breaking:** Use `base-scheduler 0.5`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged, and Rust 1.87 remains the minimum.
 
