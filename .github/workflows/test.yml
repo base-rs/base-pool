@@ -45,9 +45,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.87.0
       - run: cargo test --locked --workspace --all-features --exclude base-pool-bake
 
+  license:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Copyright lines come from the full history of the commits under review, not of GitHub's merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache-shared-key: license-bake-launcher-v1
+      - name: Install Bake launcher
+        run: cargo install bake --locked
+      - name: Check license files and Rust source headers
+        run: cargo bake --locked license:check
+
   test-result:
     if: always()
-    needs: [test, msrv]
+    needs: [test, msrv, license]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
