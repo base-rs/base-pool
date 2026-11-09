@@ -59,12 +59,13 @@ dependencies = [
 
 [[package]]
 name = "bake-license"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8a01c45b9fa4ca38fdb23c6f20359420d069a9c189055f445f38f45cdd121c9"
+checksum = "a9af16376ce5a8009ae4a058984cdabdbc0f19333df27252810b08d53ca6f861"
 dependencies = [
  "bake",
  "base-markdown",
+ "ra-ap-rustc_lexer",
  "tempfile",
  "toml_edit",
 ]
@@ -603,6 +604,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
+name = "ra-ap-rustc_lexer"
+version = "0.184.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1ee6759a85212aad34e041fca34642a27e4a0b9b4dd74154fbed844823f4cfa"
+dependencies = [
+ "memchr",
+ "unicode-ident",
+ "unicode-properties",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,6 +847,12 @@ name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
+
+[[package]]
+name = "unicode-properties"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993ad287eb20e8ba755312801cfe1413e0f25d604075863acaddca10b04c1833"
 
 [[package]]
 name = "untrusted"
