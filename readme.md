@@ -55,6 +55,10 @@ Prepare a release with `cargo bake cargo:release:patch` (or `minor`, `major`, or
 
 See [releases.md](releases.md) for the full release history.
 
+### v0.6.0
+
+- **Breaking:** Use `base-scheduler 0.6`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged, and Rust 1.87 remains the minimum.
+
 ### v0.5.0
 
 - **Breaking:** Use `base-scheduler 0.5`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged, and Rust 1.87 remains the minimum.
@@ -62,14 +66,6 @@ See [releases.md](releases.md) for the full release history.
 ### v0.4.0
 
 - **Breaking:** Use `base-scheduler 0.4`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged.
-
-### v0.3.0
-
-- Use `base-scheduler 0.3`. Pool operations take its `Cancellation`, so callers must use the same scheduler version; pool behavior and admission accounting are unchanged.
-
-- Wake retirement waiters only for cleanup work: a resource entering or re-entering the retirement queue, shutdown, aborted construction, or an acknowledged retirement. Normal reservation, activation, release and capacity updates no longer wake them, and successful multiplex activation no longer notifies other observers.
-
-- Acquire an available resource without registering a listener when no waiter is queued, and select the earliest available registration without rescanning slots known to be unavailable. FIFO admission and selection order are unchanged. In the HTTP client benchmark at 32 concurrent requests, user instructions per response fall by about 3%.
 
 <!-- bake-readme:releases:end -->
 
