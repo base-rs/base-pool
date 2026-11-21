@@ -177,9 +177,9 @@ dependencies = [
 
 [[package]]
 name = "base-scheduler"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3670aa8fb7a7cc74297e870a842cbf0d18abb486e8fec12b296d033f2c52a876"
+checksum = "52d978231df300e03843100c9d738f369a638b018d2aabf93863cdccbd08db6d"
 dependencies = [
  "event-listener",
 ]
